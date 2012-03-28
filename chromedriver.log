@@ -1,0 +1,15 @@
+[0224/162635:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <span>...</span>
+[0224/162652:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162708:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162752:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162808:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162823:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162905:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162928:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/162938:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/163020:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/163021:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <span>...</span>
+[0224/163031:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/163043:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/163122:WARNING:webdriver_session.cc(1368)] Element's descendant would receive the click. Consider clicking the descendant instead. Descendant: <nobr>...</nobr>
+[0224/191041:ERROR:automation_proxy.cc(389)] Channel error in AutomationProxy.
