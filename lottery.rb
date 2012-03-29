@@ -6,13 +6,12 @@ $debug = true
 
 @picks = []
 
+# Given a startdate, grab all the dates and drawings that fall between the start date and NOW
 def getPreviousDrawings startDate
     @dates = []
     @numbers = []
-    @numberfreq = {}
     @numberprob = {}
     @megas= []
-    @megafreq = {}
     @megaprob = {}
 
     lines = IO.readlines 'DownloadAllNumbers.txt'
@@ -23,75 +22,76 @@ def getPreviousDrawings startDate
             if startDate < d
                 @dates.push(d)
                 @numbers.push([$2.to_i,$3.to_i,$4.to_i,$5.to_i,$6.to_i])
-                @megas.push $7.to_i
+                @megas.push [$7.to_i]
             end
         end
     end
     puts @dates if $debug
 end
 
-def getNumberDistribution startDate
-    getPreviousDrawings startDate
+# Given an array of number drawings and a number range, and how many numbers per drawing, fine the probability of being chosen for each number
+# E.g. MegaMillion drawing (excluding megaball)
+#   numbersDrawn = [[1,2,3,4,5], [2,3,4,5,6], [50,51,52,53,54], ...]
+#   range = 56  -- i.e. range is 1..56
+#   numPerDraw = 5 -- i.e. each drawing contains 5 numbers for megamillions
+#   type = "Numbers" -- this is just for debugging messages
+def getNumberDistribution numbersDrawn, range, numPerDraw, type
+
+    numberFrequency = {}
+    numberProbabilities = {}
 
     # maps of numbers 1-56 and their frequency, initialized to 0
-    (1..56).each { |x| @numberfreq[x] = 0 }
-    @numbers.each do |numarray|
+    (1..range).each { |x| numberFrequency[x] = 0 }
+    numbersDrawn.each do |numarray|
         numarray.each do |n|
-            n = n.to_i
-            @numberfreq[n] += 1
+            numberFrequency[n] += 1
         end
     end
 
-    puts "Number Distribution: " if $debug
-    @numberfreq.values.uniq.sort.each do |value|
+    puts "#{type} Distribution: " if $debug
+    numberFrequency.values.uniq.sort.each do |value|
         # Print the corresponding key
-        @numberfreq.keys.sort.each do |key|
-            if @numberfreq[key] == value
-                probability = (5.0 * value) / (56.0 * @numbers.length)
-                @numberprob[probability] = @numberprob[probability] ? @numberprob[probability].push(key) : [key]
-                puts "Number: #{key}  - appeared #{value} times - probability #{probability}" if $debug
+        numberFrequency.keys.sort.each do |key|
+            if numberFrequency[key] == value
+                probability = (numPerDraw * value) / (range * numbersDrawn.length)
+                numberProbabilities[probability] = numberProbabilities[probability] ? numberProbabilities[probability].push(key) : [key]
+                puts "#{type}: #{key}  - appeared #{value} times - probability #{probability}" if $debug
             end
         end
     end
 
-    puts "Numbers Probability Map: " if $debug
-    @numberprob.each do |key,value|
+    puts "#{type} Probability Map: " if $debug
+    numberProbabilities.each do |key,value|
         puts "#{key} - #{value}" if $debug
     end
 
-    # Do same for MegaBall
-    # maps of numbers 1-46 and their frequency, initialized to 0
-    (1..46).each { |x| @megafreq[x] = 0 }
-    @megas.each do |n|
-        @megafreq[n] += 1
-    end
-    @megafreq.values.uniq.sort.each do |value|
-        # Print the corresponding key
-        @megafreq.keys.sort.each do |key|
-            if @megafreq[key] == value
-                probability = value / (46.0 * @megas.length)
-                @megaprob[probability] = @megaprob[probability] ? @megaprob[probability].push(key) : [key]
-                puts "Mega Number: #{key}  - appeared #{value} times - probability #{probability}" if $debug
-            end
-        end
-    end
-    puts "Mega Probability Map: " if $debug
-    @megaprob.each do |key,value|
-        puts "#{key} - #{value}" if $debug
-    end
+    return numberProbabilities
 end
 
+# Get the number distribution probabilities for both the 5-draw and the megaball
+def getNumberDistributions startDate
+    getPreviousDrawings startDate
 
-def pickNumbers
+    @numberprob = getNumberDistribution @numbers, 56.0, 5.0, "Numbers"
+    @megaprob = getNumberDistribution @megas, 46.0, 1.0, "Mega"
+end
+
+# Given a ProbabilityMap, choose 'numberToDraw' numbers randomly in a weighted fashion
+# E.g.
+#   probabilityMap = { 0.001 => [1,3,5], 0.0025 => [32,33], 0.25 => [2,4,7,8,9,10,21,22,24], ...... }
+#   numberToDraw = 5
+#
+#   return => [2,5,11,21,22]
+def pickNumbers probabilityMap, numberToDraw
     # Start with 5 rows of mixtures of most popular numbers picked at random but weighted against their probability
     # 1. Sum the weights, i.e. probabilities
     totalweight = 0
-    @numberprob.keys.each { |key| totalweight += key }
+    probabilityMap.keys.each { |key| totalweight += key }
 
     puts "Picking Numbers...." if $debug
     pick = []
-    numberprob = @numberprob
-    for i in 0..4
+    numberprob = probabilityMap
+    for i in 0 .. (numberToDraw-1)
         rnd = rand(0 .. totalweight)
         puts "picked #{rnd} from #{totalweight}" if $debug
         numberprob.keys.sort.reverse.each do |prob|
@@ -113,24 +113,10 @@ def pickNumbers
         end
     end
     print "Picked: " + pick.sort.to_s if $debug
-    # Pick the Mega
-    totalweight = 0.0
-    @megaprob.keys.each { |key| totalweight += key }
-
-    rnd = rand(0 .. totalweight)
-    puts "picked #{rnd} from #{totalweight}" if $debug
-    @megaprob.keys.sort.reverse.each do |prob|
-        if rnd <= prob
-            puts "matched prob #{prob} with rnd #{rnd}" if $debug
-            puts " - Mega = #{@megaprob[prob]}\n" if $debug
-            pick.push @megaprob[prob]
-            break
-        end
-        rnd -= prob
-    end
-    @picks.push pick
+    return pick
 end
 
+# Pick the MegaMillion Winning numbers, 5 numbers between 1..56 and 1 megaball between 1..46
 def pickWinningNumbers
     firstFive = pickNumbers @numberprob, 5
     mega = pickNumbers @megaprob, 1
@@ -140,9 +126,9 @@ end
 
 def pickNumbersBasedOnDistribution startDate
     # Initialize
-    getNumberDistribution startDate
+    getNumberDistributions startDate
 
-    pickNumbers
+    pickWinningNumbers
 end
 
 def getNumberAgeArray
@@ -166,23 +152,47 @@ def getNumberAgeArray
     return numberAge
 end
 
-def updateNumberProb newnumberprob
-    puts "Old Probability Map: " if $debug
-    @numberprob.each do |key,value|
-        puts "#{key} - #{value}" if $debug
-    end
-
-    @numberprob = newnumberprob
-
-    puts "New Probability Map: " if $debug
-    @numberprob.each do |key,value|
+def printProbabilityMap probabilityMap
+    probabilityMap.each do |key,value|
         puts "#{key} - #{value}" if $debug
     end
 end
 
+def updateNumberProb newnumberprob
+    puts "Old Probability Map: " if $debug
+    printProbabilityMap @numberprob
+
+    @numberprob = newnumberprob
+
+    puts "New Probability Map: " if $debug
+    printProbabilityMap @numberprob
+end
+
+def testblock probabilityMap
+    newnumberprob = {}
+
+    puts "Old Probability Map: " if $debug
+    printProbabilityMap probabilityMap
+
+    probabilityMap.keys.each do |key|
+        probabilityMap[key].each do |num|
+            # for each number in the array, create a new probability matrix with modified probabilities
+            # Magic number = weight * number of weeks since seen
+            newProb = key + (key * numberAge[num])
+            newnumberprob[newProb] = newnumberprob[newProb] ? newnumberprob[newProb].push(num) : [num]
+            puts "Number: #{num} - Old prob = #{key} - New Prob = #{key} + (#{key} * #{numberAge[num]}) = #{newProb}" if $debug 
+        end
+    end
+
+    puts "New Probability Map: " if $debug
+    printProbabilityMap newnumberprob
+
+    return newnumberprob
+end
+
 def getNumbersThatHaveNotAppearedInAgesLinear startDate
     # Initialize
-    getNumberDistribution startDate
+    getNumberDistributions startDate
     numberAge = getNumberAgeArray
     newnumberprob = {}
 
@@ -198,12 +208,12 @@ def getNumbersThatHaveNotAppearedInAgesLinear startDate
 
     updateNumberProb newnumberprob
 
-    pickNumbers
+    pickWinningNumbers
 end
 
 def getNumbersThatHaveNotAppearedInAgesExponential startDate
     # Initialize
-    getNumberDistribution startDate
+    getNumberDistributions startDate
     numberAge = getNumberAgeArray
 
     newnumberprob = {}
@@ -220,13 +230,13 @@ def getNumbersThatHaveNotAppearedInAgesExponential startDate
 
     updateNumberProb newnumberprob
 
-    pickNumbers
+    pickWinningNumbers
 end
 
 
 def getNumbersThatHaveNotAppearedInAgesLogarithmic startDate
     # Initialize
-    getNumberDistribution startDate
+    getNumberDistributions startDate
     numberAge = getNumberAgeArray
 
     newnumberprob = {}
@@ -243,7 +253,7 @@ def getNumbersThatHaveNotAppearedInAgesLogarithmic startDate
 
     updateNumberProb newnumberprob
 
-    pickNumbers
+    pickWinningNumbers
 end
 
 (0..0).each { pickNumbersBasedOnDistribution Date.new(2012,3,1) }
