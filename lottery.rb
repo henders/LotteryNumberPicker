@@ -2,7 +2,7 @@
 
 require 'date'
 
-$debug = true
+$debug = false
 
 @picks = []
 
@@ -124,30 +124,24 @@ def pickWinningNumbers
     @picks.push (firstFive + mega)
 end
 
-def pickNumbersBasedOnDistribution startDate
-    # Initialize
-    getNumberDistributions startDate
-
-    pickWinningNumbers
-end
-
-def getNumberAgeArray
+# Get Hash of 'Lotto Number' => 'Number of weeks since last seen'
+def getNumberAgeArray numbersDrawn, range, type
     # initialize the hash of numbers with their number of weeks since seen
     numberAge = {}
-    for i in 0 .. (@numbers.length-1)
-        @numbers[i].each do |n|
+    for i in 0 .. (numbersDrawn.length-1)
+        numbersDrawn[i].each do |n|
             if !numberAge[n]
                 numberAge[n] = i
             end
         end
     end
     # create entries for any numbers that havent been seen
-    (0..55).each do |i| 
+    (1 .. range).each do |i| 
         if !numberAge[i]
             numberAge[i] = @dates.length
         end
     end
-    puts "Age Map" if $debug
+    puts "#{type} Age Map" if $debug
     puts numberAge if $debug
     return numberAge
 end
@@ -158,17 +152,8 @@ def printProbabilityMap probabilityMap
     end
 end
 
-def updateNumberProb newnumberprob
-    puts "Old Probability Map: " if $debug
-    printProbabilityMap @numberprob
-
-    @numberprob = newnumberprob
-
-    puts "New Probability Map: " if $debug
-    printProbabilityMap @numberprob
-end
-
-def testblock probabilityMap
+# Given an alrogithm, apply it to the current probability to weight it differently
+def applyProbabilitySkew probabilityMap, numberAge, algorithm
     newnumberprob = {}
 
     puts "Old Probability Map: " if $debug
@@ -177,8 +162,7 @@ def testblock probabilityMap
     probabilityMap.keys.each do |key|
         probabilityMap[key].each do |num|
             # for each number in the array, create a new probability matrix with modified probabilities
-            # Magic number = weight * number of weeks since seen
-            newProb = key + (key * numberAge[num])
+            newProb = algorithm.call(key, numberAge[num])
             newnumberprob[newProb] = newnumberprob[newProb] ? newnumberprob[newProb].push(num) : [num]
             puts "Number: #{num} - Old prob = #{key} - New Prob = #{key} + (#{key} * #{numberAge[num]}) = #{newProb}" if $debug 
         end
@@ -190,23 +174,28 @@ def testblock probabilityMap
     return newnumberprob
 end
 
+##############################################################################################################
+## The Number Picking APIs are below
+##############################################################################################################
+
+# The basic Number Picking Algorithm: Just uses number distribution
+def pickNumbersBasedOnDistribution startDate
+    # Initialize
+    getNumberDistributions startDate
+
+    pickWinningNumbers
+end
+
 def getNumbersThatHaveNotAppearedInAgesLinear startDate
     # Initialize
     getNumberDistributions startDate
-    numberAge = getNumberAgeArray
-    newnumberprob = {}
+    numberAge = getNumberAgeArray @numbers, 56, "Numbers"
+    megaAge = getNumberAgeArray @numbers, 46, "Mega"
 
-    @numberprob.keys.each do |key|
-        @numberprob[key].each do |num|
-            # for each number in the array, create a new probability matrix with modified probabilities
-            # Magic number = weight * number of weeks since seen
-            newProb = key + (key * numberAge[num])
-            newnumberprob[newProb] = newnumberprob[newProb] ? newnumberprob[newProb].push(num) : [num]
-            puts "Number: #{num} - Old prob = #{key} - New Prob = #{key} + (#{key} * #{numberAge[num]}) = #{newProb}" if $debug 
-        end
-    end
-
-    updateNumberProb newnumberprob
+    # Magic number = weight * number of weeks since seen
+    algoritm = lambda {|key,age| key + (key * age)}
+    @numberprob = applyProbabilitySkew @numberprob, numberAge, algoritm
+    @megaprob = applyProbabilitySkew @megaprob, megaAge, algoritm
 
     pickWinningNumbers
 end
@@ -214,21 +203,13 @@ end
 def getNumbersThatHaveNotAppearedInAgesExponential startDate
     # Initialize
     getNumberDistributions startDate
-    numberAge = getNumberAgeArray
+    numberAge = getNumberAgeArray @numbers, 56, "Numbers"
+    megaAge = getNumberAgeArray @numbers, 46, "Mega"
 
-    newnumberprob = {}
-
-    @numberprob.keys.each do |key|
-        @numberprob[key].each do |num|
-            # for each number in the array, create a new probability matrix with modified probabilities
-            # Magic number = (2 ^ (0.000025 * x) ) -1
-            newProb = key + (2 ** (0.000025 * numberAge[num]) ) -1
-            newnumberprob[newProb] = newnumberprob[newProb] ? newnumberprob[newProb].push(num) : [num]
-            puts "Number: #{num} - Old prob = #{key} - New Prob = #{key} + 2 ^ (0.000025 * #{numberAge[num]}) -1 = #{newProb}" if $debug
-        end
-    end
-
-    updateNumberProb newnumberprob
+    # Magic number = (2 ^ (0.000025 * x) ) -1
+    algoritm = lambda {|key,age| key + (2 ** (0.000025 * age) ) -1}
+    @numberprob = applyProbabilitySkew @numberprob, numberAge, algoritm
+    @megaprob = applyProbabilitySkew @megaprob, megaAge, algoritm
 
     pickWinningNumbers
 end
@@ -237,27 +218,18 @@ end
 def getNumbersThatHaveNotAppearedInAgesLogarithmic startDate
     # Initialize
     getNumberDistributions startDate
-    numberAge = getNumberAgeArray
+    numberAge = getNumberAgeArray @numbers, 56, "Numbers"
+    megaAge = getNumberAgeArray @numbers, 46, "Mega"
 
-    newnumberprob = {}
-
-    @numberprob.keys.each do |key|
-        @numberprob[key].each do |num|
-            # for each number in the array, create a new probability matrix with modified probabilities
-            # Magic number = (log2(x))*0.001
-            newProb = key + (Math.log2(numberAge[num] + 1) * 0.001)
-            newnumberprob[newProb] = newnumberprob[newProb] ? newnumberprob[newProb].push(num) : [num]
-            puts "Number: #{num} - Old prob = #{key} - New Prob = #{key} + (log2(#{numberAge[num]}) * 0.001) = #{newProb}" if $debug 
-        end
-    end
-
-    updateNumberProb newnumberprob
+    # Magic number = (log2(x))*0.001
+    algoritm = lambda {|key,age| key + (Math.log2(age + 1) * 0.001)}
+    @numberprob = applyProbabilitySkew @numberprob, numberAge, algoritm
+    @megaprob = applyProbabilitySkew @megaprob, megaAge, algoritm
 
     pickWinningNumbers
 end
 
 (0..0).each { pickNumbersBasedOnDistribution Date.new(2012,3,1) }
-exit 1
 (0..2).each { pickNumbersBasedOnDistribution Date.new(2010,6,1) }
 (0..2).each { pickNumbersBasedOnDistribution Date.new(2011,1,1) }
 
